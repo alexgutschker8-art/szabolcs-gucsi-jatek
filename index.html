@@ -27,6 +27,20 @@ button{font:inherit;cursor:pointer;color:white;border:1px solid #ffffff55;backgr
 #go{background:linear-gradient(135deg,#ffd078,#e69c36);color:#21170b;border:0;border-radius:12px;padding:14px 24px;font-weight:950;font-size:16px;margin-top:10px}
 #toast{position:fixed;top:86px;left:50%;transform:translateX(-50%);z-index:4;background:#101b26e8;border:1px solid #ffffff44;border-radius:12px;padding:10px 16px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
 @media(max-width:650px){#hud{inset:9px 9px auto}#mission{max-width:48vw;padding:9px 10px}#help{left:9px;bottom:9px;font-size:10px;max-width:48vw;padding:8px 10px}#touch{right:9px;bottom:9px;grid-template-columns:repeat(3,49px);gap:5px}#touch button{width:49px;height:45px}#touch .wide{height:43px}}
+
+#extra{position:fixed;right:14px;top:105px;z-index:3;display:flex;gap:8px;flex-direction:column}
+#extra button{padding:10px 13px;font-size:12px;font-weight:900;letter-spacing:.03em}
+#quiz{display:none;position:fixed;inset:0;z-index:8;place-items:center;background:#030910c9;padding:18px}
+#quiz .quizbox{width:min(92vw,470px);background:#101c28f5;border:1px solid #ffffff44;border-radius:20px;padding:24px;box-shadow:0 20px 70px #0009}
+#quiz h2{margin:0 0 8px;color:#f5bd58}
+#quiz p{line-height:1.45;color:#e4edf2}
+#quiz button{display:block;width:100%;height:auto;padding:13px;margin-top:9px;text-align:left;font-size:14px}
+#quiz button:hover{background:#31465a}
+#effect{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .5s;background:radial-gradient(ellipse at center,transparent 30%,#8c52c955 100%);mix-blend-mode:screen}
+#effect.active{opacity:1}
+#effectLabel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;color:#fff;font-weight:1000;font-size:clamp(18px,4vw,32px);letter-spacing:.08em;text-shadow:0 3px 18px #000;opacity:0;pointer-events:none}
+#effectLabel.active{opacity:1}
+@media(max-width:650px){#extra{top:auto;right:9px;bottom:164px}#extra button{padding:9px 10px;font-size:10px}}
 </style>
 </head>
 <body>
@@ -34,12 +48,23 @@ button{font:inherit;cursor:pointer;color:white;border:1px solid #ffffff55;backgr
   <div id="brand" class="panel">SZABOLCS <span style="color:var(--gold)">&</span> GUCSI<small>KISVÁROSI KÁOSZ · FEJLESZTETT PROTOTÍPUS</small></div>
   <div id="mission" class="panel"><strong>KÜLDETÉS 01</strong><span id="missionText">Gucsi és Szabi együtt indulnak a főtérről!</span></div>
 </div>
-<div id="help" class="panel">PC: WASD / nyilak · SPACE: ugrás · E: beszállás · Mobil: jobb oldali gombok</div>
+<div id="help" class="panel">PC: WASD / nyilak · SPACE: ugrás · E: beszállás · Q: játékeffekt · Mobil: jobb oldali gombok</div>
 <div id="touch">
   <button data-k="ArrowUp">▲</button><button data-k="Space">⤒</button><button data-k="ArrowLeft">◀</button>
   <button data-k="ArrowDown">▼</button><button data-k="ArrowRight">▶</button><button data-k="KeyE" class="wide">AUTÓBA BE / KI</button>
 </div>
+
 <div id="toast"></div>
+<div id="effect"></div><div id="effectLabel">KÜLÖNÖSEN KÓTYAGOS MÓD</div>
+<div id="extra">
+ <button id="quizBtn">🧠 KVÍZ / FELADAT</button>
+ <button id="gameEffectBtn">🌿 JÁTÉKBELI HATÁS</button>
+</div>
+<div id="quiz"><div class="quizbox">
+ <h2 id="quizTitle">Kisvárosi kvíz</h2><p id="quizQuestion">Melyik megyében található Gyöngyös?</p>
+ <div id="answers"></div>
+ <button id="closeQuiz" style="text-align:center;background:#34485a">VISSZA A JÁTÉKBA</button>
+</div></div>
 <div id="start"><div id="panel" class="panel">
   <h1>SZABOLCS<br><span>& GUCSI</span></h1>
   <p>Üdv a kisvárosi káoszban! Ez a fejlesztett 3D-s prototípus részletesebb várossal, karakterekkel és autóval.</p>
@@ -191,9 +216,37 @@ for(let x of [-1.1,1.1])for(let z of [-1.35,1.35]){
 for(let x of [-.68,.68])box(car,x,.86,2.14,.35,.18,.08,mat(0xffe8b3));
 car.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
 let keys={},inCar=false,vel=0,started=false,missionDone=false,spaceLock=false;
+let gameEffectUntil=0, gameEffectActive=false, quizIndex=0, completedQuizzes=0;
+const quizItems=[
+ {q:'Melyik megyében található Gyöngyös?',a:['Heves vármegyében','Pest vármegyében','Borsod-Abaúj-Zemplén vármegyében'],correct:0,why:'Gyöngyös Heves vármegyében található.'},
+ {q:'Melyik hegység lábánál fekszik Gyöngyös?',a:['Bakony','Mátra','Bükk'],correct:1,why:'Gyöngyös a Mátra déli lábánál fekszik.'},
+ {q:'Mi a legbiztonságosabb döntés, ha egy játékbeli vezetési feladatban túl gyorsan mész?',a:['Még jobban gyorsítasz','Fékezel és lassítasz','Becsukod a szemed'],correct:1,why:'A lassítás segít kontroll alatt tartani az autót.'}
+];
+function openQuiz(){
+ const q=quizItems[quizIndex%quizItems.length];
+ document.getElementById('quizTitle').textContent='KÜLDETÉS-KVÍZ · '+(completedQuizzes+1);
+ document.getElementById('quizQuestion').textContent=q.q;
+ const wrap=document.getElementById('answers');wrap.innerHTML='';
+ q.a.forEach((answer,i)=>{const b=document.createElement('button');b.textContent=String.fromCharCode(65+i)+') '+answer;b.onclick=()=>{
+   if(i===q.correct){completedQuizzes++;notify('Helyes! '+q.why);document.getElementById('missionText').textContent='Kvízek teljesítve: '+completedQuizzes+'/3 · Keress új kihívást!';}
+   else notify('Nem egészen. '+q.why);
+   document.getElementById('quiz').style.display='none';};wrap.appendChild(b)});
+ document.getElementById('quiz').style.display='grid';
+}
+document.getElementById('quizBtn').addEventListener('click',openQuiz);
+document.getElementById('closeQuiz').addEventListener('click',()=>document.getElementById('quiz').style.display='none');
+function activateGameEffect(){
+ if(!started){notify('Előbb indítsd el a játékot!');return;}
+ gameEffectUntil=performance.now()+18000;gameEffectActive=true;
+ document.getElementById('effect').classList.add('active');
+ document.getElementById('effectLabel').classList.add('active');
+ notify('Játékbeli állapothatás 18 mp-ig: a mozgás és a kamera imbolyog.');
+}
+document.getElementById('gameEffectBtn').addEventListener('click',activateGameEffect);
+
 function notify(t){const el=document.getElementById('toast');el.textContent=t;el.style.opacity=1;clearTimeout(notify.t);notify.t=setTimeout(()=>el.style.opacity=0,2200)}
 function toggleCar(){if(player.position.distanceTo(car.position)<3.5||inCar){inCar=!inCar;if(inCar){player.visible=false;notify('Beszálltál az autóba!')}else{player.visible=true;player.position.copy(car.position).add(new THREE.Vector3(2.2,0,0));notify('Kiszálltál az autóból.')}}else notify('Menj közelebb az autóhoz a beszálláshoz!')}
-addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyE')toggleCar()});
+addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyE')toggleCar();if(e.code==='KeyQ')activateGameEffect()});
 addEventListener('keyup',e=>keys[e.code]=false);
 document.querySelectorAll('[data-k]').forEach(b=>{let k=b.dataset.k;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;if(k==='KeyE')toggleCar()});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
 document.getElementById('go').onclick=()=>{document.getElementById('start').style.display='none';started=true;notify('Gucsi és Szabi együtt a pályán!')};
@@ -204,12 +257,16 @@ mesh(new THREE.ConeGeometry(.22,.55,12),mat(0xf5bd58),marker,0,1.05,0);
 const clock=new THREE.Clock();
 function animate(){
  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
+ const effectNow=performance.now();
+ if(gameEffectActive&&effectNow>gameEffectUntil){gameEffectActive=false;document.getElementById('effect').classList.remove('active');document.getElementById('effectLabel').classList.remove('active');notify('A játékeffekt véget ért.');}
+ const wobble=gameEffectActive?1+Math.sin(effectNow*.006)*.18:1;
+
  const forward=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
  const turn=(keys.KeyA||keys.ArrowLeft?1:0)-(keys.KeyD||keys.ArrowRight?1:0);
  if(started){
-  if(inCar){vel+=(forward*17-vel*2.3)*dt;car.rotation.y+=turn*dt*1.65*Math.max(.35,Math.abs(vel)/5);car.translateZ(-vel*dt);vel*=Math.pow(.985,dt*60)}
+  if(inCar){vel+=(forward*17-vel*2.3)*dt;car.rotation.y+=turn*dt*1.65*Math.max(.35,Math.abs(vel)/5)*(gameEffectActive?wobble:1);car.translateZ(-vel*dt);vel*=Math.pow(.985,dt*60)}
   else{
-   if(forward||turn){player.rotation.y+=turn*dt*2.35;player.translateZ(-forward*dt*5.2);player.userData.walk+=dt*8}
+   if(forward||turn){player.rotation.y+=turn*dt*2.35*wobble+(gameEffectActive?Math.sin(effectNow*.003)*dt*.45:0);player.translateZ(-forward*dt*5.2*(gameEffectActive?.78:1));player.userData.walk+=dt*8}
    player.children.forEach((o,i)=>{if(i===0)o.rotation.z=Math.sin(player.userData.walk)*.025});
    if(keys.Space&&!spaceLock&&player.position.y<.02){player.userData.jump=5.2;spaceLock=true}if(!keys.Space)spaceLock=false;
    if(player.userData.jump){player.position.y+=player.userData.jump*dt;player.userData.jump-=14*dt;if(player.position.y<0)player.position.y=0;if(player.position.y===0)player.userData.jump=0}
@@ -219,7 +276,7 @@ function animate(){
  }
  const target=inCar?car:player;
  const offset=new THREE.Vector3(0,5.3,10.5).applyAxisAngle(new THREE.Vector3(0,1,0),target.rotation.y);
- camera.position.lerp(target.position.clone().add(offset),1-Math.pow(.001,dt));camera.lookAt(target.position.x,target.position.y+1.15,target.position.z);
+ camera.position.lerp(target.position.clone().add(offset),1-Math.pow(.001,dt));camera.lookAt(target.position.x+(gameEffectActive?Math.sin(effectNow*.002)*.28:0),target.position.y+1.15,target.position.z);
  marker.rotation.y+=dt*1.1;renderer.render(scene,camera);
 }
 animate();
