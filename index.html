@@ -32,7 +32,7 @@ button{font:inherit;cursor:pointer;color:white;border:1px solid #ffffff55;backgr
 <body>
 <div id="hud">
   <div id="brand" class="panel">SZABOLCS <span style="color:var(--gold)">&</span> GUCSI<small>KISVÁROSI KÁOSZ · FEJLESZTETT PROTOTÍPUS</small></div>
-  <div id="mission" class="panel"><strong>KÜLDETÉS 01</strong><span id="missionText">Találkozz Szabolccsal a főtéren!</span></div>
+  <div id="mission" class="panel"><strong>KÜLDETÉS 01</strong><span id="missionText">Gucsi és Szabi együtt indulnak a főtérről!</span></div>
 </div>
 <div id="help" class="panel">PC: WASD / nyilak · SPACE: ugrás · E: beszállás · Mobil: jobb oldali gombok</div>
 <div id="touch">
@@ -43,7 +43,7 @@ button{font:inherit;cursor:pointer;color:white;border:1px solid #ffffff55;backgr
 <div id="start"><div id="panel" class="panel">
   <h1>SZABOLCS<br><span>& GUCSI</span></h1>
   <p>Üdv a kisvárosi káoszban! Ez a fejlesztett 3D-s prototípus részletesebb várossal, karakterekkel és autóval.</p>
-  <p>Indulj el a főtéren, keresd meg Szabolcsot, majd próbáld ki az autót!</p>
+  <p>Gucsi és Szabi egyszerre vannak a pályán. Induljatok együtt a főtérről, majd próbáljátok ki az autót!</p>
   <button id="go">JÁTÉK INDÍTÁSA</button>
 </div></div>
 <script type="module">
@@ -134,9 +134,21 @@ function person(x,z,kind){
  mesh(new THREE.CapsuleGeometry(.48,.72,5,12),shirt,g,0,1.45,0);
  mesh(new THREE.CylinderGeometry(.16,.18,.28,10),skin,g,0,2.0,0);
  mesh(new THREE.SphereGeometry(.39,20,16),skin,g,0,2.38,0);
- // hair cap and fringe
+ // Hair and cap: Gucsi wears a dark baseball cap backwards.
  let cap=mesh(new THREE.SphereGeometry(.405,18,12,0,Math.PI*2,0,Math.PI*.58),hair,g,0,2.55,-.025);cap.scale.set(1.03,.83,1.02);
  for(let i=0;i<5;i++)mesh(new THREE.SphereGeometry(.12,8,7),hair,g,(i-2)*.13,2.62,.22);
+ if(kind==='gucsi'){
+  const capMat=mat(0x111820,.72),capDetail=mat(0x252f3a,.7);
+  // Crown sits over the hair; the flattened visor is deliberately at the back (-Z).
+  const crown=mesh(new THREE.SphereGeometry(.425,20,12,0,Math.PI*2,0,Math.PI*.52),capMat,g,0,2.69,-.015);
+  crown.scale.set(1.06,.72,1.04);
+  const visor=mesh(new THREE.CylinderGeometry(.29,.34,.055,24),capMat,g,0,2.665,-.365);
+  visor.scale.set(1.08,.55,1.42);
+  visor.rotation.x=-.06;
+  mesh(new THREE.SphereGeometry(.035,8,8),capDetail,g,0,2.99,-.015);
+  // Small rear adjustment strap makes the backwards orientation readable.
+  mesh(new THREE.BoxGeometry(.25,.055,.035),capDetail,g,0,2.63,-.405);
+ }
  // ears, eyes, brows, nose, mouth
  for(let s of [-1,1]){
   mesh(new THREE.SphereGeometry(.075,8,8),skin,g,s*.39,2.37,0);
@@ -145,9 +157,13 @@ function person(x,z,kind){
   box(g,s*.145,2.52,.35,.13,.035,.025,hair);
  }
  mesh(new THREE.SphereGeometry(.055,8,8),skin,g,0,2.31,.37);
- // short beard / goatee for Gucsi, soft stubble for Szabi
- if(kind==='gucsi'){mesh(new THREE.SphereGeometry(.19,12,8),hair,g,0,2.13,.22).scale.set(1,.55,.7)}
- else {mesh(new THREE.SphereGeometry(.13,10,8),hair,g,0,2.14,.25).scale.set(1,.25,.6)}
+ // Gucsi's moustache and defined goatee; Szabi keeps light stubble.
+ if(kind==='gucsi'){
+  mesh(new THREE.SphereGeometry(.19,12,8),hair,g,0,2.13,.22).scale.set(.88,.72,.78);
+  mesh(new THREE.SphereGeometry(.105,12,8),hair,g,-.105,2.235,.365).scale.set(1.25,.42,.55);
+  mesh(new THREE.SphereGeometry(.105,12,8),hair,g,.105,2.235,.365).scale.set(1.25,.42,.55);
+  mesh(new THREE.SphereGeometry(.105,12,8),hair,g,0,2.045,.30).scale.set(.72,1.0,.72);
+ } else {mesh(new THREE.SphereGeometry(.13,10,8),hair,g,0,2.14,.25).scale.set(1,.25,.6)}
  // arms and hands
  for(let s of [-1,1]){
   const arm=mesh(new THREE.CapsuleGeometry(.13,.72,4,8),shirt,g,s*.59,1.42,0);arm.rotation.z=s*.17;
@@ -159,8 +175,9 @@ function person(x,z,kind){
  box(g,.12,1.55,.45,.18,.26,.025,mat(kind==='szabi'?0x8897a1:0xe1b36b));
  g.userData.kind=kind;g.userData.walk=0;return g;
 }
-const player=person(0,8,'gucsi'),friend=person(5,1,'szabi');
-player.rotation.y=Math.PI;friend.rotation.y=-Math.PI/2;
+const player=person(0,5,'gucsi'),friend=person(2.4,2.8,'szabi');
+// Both characters spawn together and face the camera so they are visible immediately.
+player.rotation.y=0;friend.rotation.y=-Math.PI/2;
 // parked detailed car
 const car=new THREE.Group();scene.add(car);car.position.set(5,0,12);
 const bodyMat=mat(0x1c3445,.28,.45),windowMat=new THREE.MeshStandardMaterial({color:0x8baab8,roughness:.15,metalness:.3});
@@ -179,7 +196,7 @@ function toggleCar(){if(player.position.distanceTo(car.position)<3.5||inCar){inC
 addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyE')toggleCar()});
 addEventListener('keyup',e=>keys[e.code]=false);
 document.querySelectorAll('[data-k]').forEach(b=>{let k=b.dataset.k;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true;if(k==='KeyE')toggleCar()});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
-document.getElementById('go').onclick=()=>{document.getElementById('start').style.display='none';started=true;notify('Küldetés elindítva! Találd meg Szabolcsot.')};
+document.getElementById('go').onclick=()=>{document.getElementById('start').style.display='none';started=true;notify('Gucsi és Szabi együtt a pályán!')};
 // ground target marker
 const marker=new THREE.Group();scene.add(marker);marker.position.set(5,0,1);
 mesh(new THREE.TorusGeometry(1.15,.08,8,32),mat(0xf5bd58,.35,.2),marker,0,.12,0).rotation.x=Math.PI/2;
@@ -196,7 +213,7 @@ function animate(){
    player.children.forEach((o,i)=>{if(i===0)o.rotation.z=Math.sin(player.userData.walk)*.025});
    if(keys.Space&&!spaceLock&&player.position.y<.02){player.userData.jump=5.2;spaceLock=true}if(!keys.Space)spaceLock=false;
    if(player.userData.jump){player.position.y+=player.userData.jump*dt;player.userData.jump-=14*dt;if(player.position.y<0)player.position.y=0;if(player.position.y===0)player.userData.jump=0}
-   if(friend.position.distanceTo(player.position)>3.2){let dest=player.position.clone().add(new THREE.Vector3(1.8,0,1.8).applyAxisAngle(new THREE.Vector3(0,1,0),player.rotation.y));friend.position.lerp(dest,Math.min(1,dt*.9));friend.rotation.y=Math.atan2(player.position.x-friend.position.x,player.position.z-friend.position.z)}
+   {let dest=player.position.clone().add(new THREE.Vector3(2.0,0,1.0).applyAxisAngle(new THREE.Vector3(0,1,0),player.rotation.y));friend.position.lerp(dest,Math.min(1,dt*1.8));friend.rotation.y=Math.atan2(player.position.x-friend.position.x,player.position.z-friend.position.z)}
   }
   if(!missionDone&&player.position.distanceTo(friend.position)<2.3){missionDone=true;document.getElementById('missionText').textContent='Szabi megvan! Szálljatok be az autóba.';marker.visible=false;notify('KÜLDETÉS TELJESÍTVE · +500 Ft (teszt)')}
  }
